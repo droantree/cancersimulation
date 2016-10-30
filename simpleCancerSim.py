@@ -4,7 +4,7 @@ Created on Wed Oct 26 18:52:50 2016
 
 @author: donal
 """
-
+#
 #Simulation explanation:
 #  Based on the incidence rate parameter, cancer starts in a population according to a poisson process
 #  The cancer is only diagnosed/noticed by the sufferer at some stage after it has developed. It is 
