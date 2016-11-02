@@ -58,18 +58,6 @@ def CDFGompertz(gParams, x):
     return 1.0 - np.exp(-eta * (np.exp(b*x) - 1))
 ###### END OF: Gompertz-related functions ###########
 
-"""
-ETA = 0.005  #0.018
-
-def GompertzBParam(halflife):
-    inner = 1 - (np.log(0.5) / ETA)
-    return (1.0/halflife) * np.log(inner)
-
-def CDFGompertz(x, b):
-    power = -ETA*(np.exp(b*x)-1)    
-    return 1 - np.exp(power)
-"""
-
 ###### Other stats-related functions ###########
 def ProbDieBeforeT2GivenSurviveUntilTime1(time1, time2, gParams):
     # basically P(T <= time2 | T > time1) which is
