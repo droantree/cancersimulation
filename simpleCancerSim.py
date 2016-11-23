@@ -39,7 +39,7 @@ Created on Wed Oct 26 18:52:50 2016
 #     the population size due to cancer deaths.
 
 import numpy as np
-import misc.py
+import misc.py as gp
 
 #Simulation parameters
 POPULATION = 1000000
@@ -59,7 +59,7 @@ class Sufferer:
         self.dayCancerStarted = today
         self.appt = None #when created the cancer has not been diagnosed and so there is no appointment
         self.status = STATUS_NOT_TREATED
-        self.mortalityParams = 
+        self.mortalityParams = pickRandomMortalityParams()
 
     def cancerStage(self, day):
         return day - self.dayCancerStarted        
@@ -117,10 +117,11 @@ class ApptSchedule:
         
     
 class Model:
-    def __init__(self):
+    def __init__(self, simResults):
         self.sufferers = []  #a list of Sufferer objects
         self.today = 0
         self.apptSchedule = ApptSchedule()
+        self.simResults = simResults
     
     def progressToNextDay(self):
         self.today += 1
@@ -128,8 +129,17 @@ class Model:
         numberOfNewCancerSuffers = numberOfNewCancerStartsToday()
         self.createNewSuffers(numberOfNewCancerSuffers) 
         #go through all sufferers and "progress" them to today
+        sufferersTreated = [] #ercord those sufferers that have been treated so they can be removed later
         for sufferer in self.sufferers:
-            . .  . . . . .
+            sufferer.progressOneDay(self.today)
+            if sufferer.hasBeenTreated():
+                sufferersTreated.append(sufferer) #don't remove a sufferer from self.sufferers because that would interfere with the for loop 
+                if sufferer.isStatusFailed():
+                    self.simResults.addDeath(self.today)
+                else:
+                    self.simResults.addCure(self.today)
+        for sufferer in sufferersTreated:
+            self.sufferers.remove(sufferer)
 
     def createNewSuffers(self, numberOfNewSufferers):
         for i in range(numberOfNewSufferers):
@@ -138,10 +148,21 @@ class Model:
             
 ######## End of class Model
 
+class ModelResults:
+    def __init__(self):
+        self.deaths = np.zeros(DAYS_TO_RUN)
+        self.cured = np.zeros(DAYS_TO_RUN)
+        
+    def addDeath(self, day):
+        self.deaths[day] += 1
+        
+    def addCure(self, day):
+        self.cured[day] += 1
+
 def pickRandomMortalityParams():
     MEDmort = float(np.random.randint(60, 700))
     PHALFmort = 0.02
-    return gompertzParams(MEDmort, PHALFmort)
+    return gp.gompertzParams(MEDmort, PHALFmort)
 
 def numberOfNewCancerStartsToday():
     #Assume poisson process with mean rate*population.
@@ -184,6 +205,10 @@ def isNoticed(stage):
         return pickRandomTF(probOfNotice)
 
 #Finally, actually run the model:
-simModel = Model();
+simResults = ModelResults();
+simModel = Model(simResults);
 for day in range(DAYS_TO_RUN):
     simModel.progressToNextDay()
+#now write out results
+totalDeaths = np.sum(simResults.deaths)
+print "Total deaths: " + str(totalDeaths)
