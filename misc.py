@@ -42,6 +42,8 @@ Knowing b and eta allows us to calculate F(x) for any x.
 import numpy as np
 import matplotlib.pyplot as plt
 
+np.set_printoptions(suppress=True)
+
 ###### Gompertz-related functions (see notes above) ###########
 
 def gompertzParams(M, ProbHalfM):
@@ -56,6 +58,12 @@ def CDFGompertz(gParams, x):
     b = gParams["b"]
     eta = gParams["eta"]
     return 1.0 - np.exp(-eta * (np.exp(b*x) - 1))
+    
+def CDFInverseGompertz(gParams, p):
+    b = gParams["b"]
+    eta = gParams["eta"]
+    inner = 1 - np.log(1-p)/float(eta)
+    return np.log(inner) / float(b)
 ###### END OF: Gompertz-related functions ###########
 
 ###### Other stats-related functions ###########
@@ -70,24 +78,53 @@ def pickRandomTF(probOfTrue):
     randomFrom0To1 = np.random.uniform()
     return randomFrom0To1 <= probOfTrue
 ###### END OF: Other stats-related functions ###########
-    
-Median = 60 / 2 #equal chance of surviving to this number of days as not
-ProbHalfMedian = 0.02
+
+########## Test Gompertz #################    
+
+'''
+Median = 20 #equal chance of surviving to this number of days as not
+ProbHalfMedian = 0.1
 
 gParams = gompertzParams(Median, ProbHalfMedian)
-print "gParams=" + str(gParams)
-print CDFGompertz(gParams, 30.0)
 
-bins = np.zeros(60)
-for testSubject in range(1000):
-    for day in range(Median*2):
-        probDie = ProbDieBeforeT2GivenSurviveUntilTime1(day, day+1, gParams)
+for i in range(51):
+    print str(i) + "%: " + str(CDFInverseGompertz(gParams, i/100.0))
+
+for i in range(100):
+        probDie = ProbDieBeforeT2GivenSurviveUntilTime1(1,2, gParams)
         if pickRandomTF(probDie):
-            bins[day] += 1
-            break
+            print "die"
+        else:
+            print "---"
+
+#for day in range(Median*2):
+#    print "day " + str(day) + ": " + str(CDFGompertz(gParams, day))
+
+print "gParams=" + str(gParams)
+print CDFGompertz(gParams, Median)
+
+sumbins = np.zeros(Median*2)
+sumsqrbins = np.zeros(Median*2)
+iterations = 40
+for i in range(iterations):
+    bins = np.zeros(Median*2)
+    for testSubject in range(1000):
+        for day in range(Median*2):
+            probDie = ProbDieBeforeT2GivenSurviveUntilTime1(day, day+1, gParams)
+            if pickRandomTF(probDie):
+                bins[day] += 1
+                break
+    sumbins += bins
+    sumsqrbins += bins**2
+    print "iteration: " + str(i)
+means = sumbins / float(iterations)
+stdevs = np.sqrt((sumsqrbins - (sumbins**2)/float(iterations)) / float(iterations))
         
-print bins
+print means
+print np.cumsum(means)
+print stdevs
 print "sum bins: " + str(sum(bins))
 print "sum 30 bins: " + str(sum(bins[1:30]))
 print "sum 15 bins: " + str(sum(bins[1:15]))
-        
+'''
+########## END OF: Test Gompertz ###########

@@ -6,11 +6,22 @@ Created on Wed Oct 26 18:52:50 2016
 """
 #
 #Simulation explanation:
-#  Based on the incidence rate parameter, cancer starts in a population according to a poisson process
+#  Based on the incidence rate parameter, cancer starts in a population according to a poisson process.
+#  The cancer progresses according to a Gompertz model (i.e. the probability of the sufferer dying from it 
+#     at any particular stage is modeled as a Gompertz distribution.) The distribution is specified
+#     by providing the Median stage (i.e. number of days) and also the probability of death before half this
+#     median. (See misc.py) i.e. MEDmort is such that CDF(MEDmort)=0.5 and PHALFmort = CDFmort(MEDmort/2)
+#     In this model the two parameters are picked as follows:
+#        - MEDmort will be picked from a uniform distribution from 60 to 700 (approx 2 months to 2 years)
+#        - PHALFmort will be fixed at 0.02 (experiments suggest this as generating a reasonable shape)
 #  The cancer is only diagnosed/noticed by the sufferer at some stage after it has developed. It is 
 #     assumed that once it is noticed it is immediately diagnosed by a doctor. A more complex
 #     simulation later can nodel the scenario where the sufferer has to make an appointment to be seen
 #     by their doctor after noticing the cancer in order to have it diagnosed.
+#  The probability of noticing the cancer follows a Gompertz model which is related to the progress model
+#     as follows: 
+#     The Median number of days is picked from a uniform distribution from CDFINVmort(0.01) to MEDmort
+#     The ProbHalfMedian is picked from a uniform distribution from 0.02 to 0.2
 #  This is a discrete simulation, progressing on a day-to-day basis.
 #  The term "stage" refers to the number of days since a cancer started in a sufferer.
 #  There are a fixed number of treatment appointment slots per day and a sufferer is always booked
@@ -21,10 +32,14 @@ Created on Wed Oct 26 18:52:50 2016
 #  When a suffer is treated, the treatment is immediately successful or they die immediately, i.e.
 #     this simulation does not model time to recover or time during which the cancer progresses to its
 #     terminal stage.
+#  The probability of the treatment being successful is based simply on a probability derived from the 
+#     stage in the mortality model as follows: at stage(day) x, CDFmort(x) = p, then the prob of
+#     successful treatment is 1-p.
 #  The incidence rate of cancer is relatively low so the simulation does not model the decrease in
 #     the population size due to cancer deaths.
 
 import numpy as np
+import misc.py
 
 #Simulation parameters
 POPULATION = 1000000
@@ -44,6 +59,7 @@ class Sufferer:
         self.dayCancerStarted = today
         self.appt = None #when created the cancer has not been diagnosed and so there is no appointment
         self.status = STATUS_NOT_TREATED
+        self.mortalityParams = 
 
     def cancerStage(self, day):
         return day - self.dayCancerStarted        
@@ -121,7 +137,11 @@ class Model:
             self.sufferers.append(newSufferer)
             
 ######## End of class Model
-    
+
+def pickRandomMortalityParams():
+    MEDmort = float(np.random.randint(60, 700))
+    PHALFmort = 0.02
+    return gompertzParams(MEDmort, PHALFmort)
 
 def numberOfNewCancerStartsToday():
     #Assume poisson process with mean rate*population.
