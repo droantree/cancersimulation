@@ -40,11 +40,12 @@ Created on Wed Oct 26 18:52:50 2016
 
 import numpy as np
 import misc as gp
+import matplotlib.pyplot as plt
 
 #Simulation parameters
 POPULATION = 1000000
 SLOTS_PER_DAY = 20  #number of appointment slots that can be allocated each day
-DAYS_TO_RUN = 365 * 2  #2 years
+DAYS_TO_RUN = 365 * 5  # years
 CANCER_START_DAILY_INCIDENCE_RATE = float(1) / (2 * 70 * 365)  #corresponds to person having a 50/50 chance of developing cancer in their life, avg lifespan 70 years
 
 #Status values
@@ -186,10 +187,16 @@ def randomUniformFloat(min, max):
     return np.random.random_sample() * (max - min) + min
 
 #Finally, actually run the model:
-simResults = ModelResults();
-simModel = Model(simResults);
-for day in range(DAYS_TO_RUN):
-    simModel.progressToNextDay()
-#now write out results
-totalDeaths = np.sum(simResults.deaths)
-print "Total deaths: " + str(totalDeaths)
+slotsPerDayList = []
+deathsList = []
+for slotsPerDay in range(18, 22):
+    simResults = ModelResults();
+    simModel = Model(simResults);
+    for day in range(DAYS_TO_RUN):
+        simModel.progressToNextDay()
+    deaths = np.sum(simResults.deaths)
+    slotsPerDayList.append(slotsPerDay)
+    deathsList.append(deaths)
+
+plt.plot(slotsPerDayList, deathsList)
+plt.show()
