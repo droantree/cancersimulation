@@ -67,7 +67,7 @@ def CDFInverseGompertz(gParams, p):
 ###### END OF: Gompertz-related functions ###########
 
 ###### Other stats-related functions ###########
-def ProbDieBeforeT2GivenSurviveUntilTime1(time1, time2, gParams):
+def ProbEventBeforeT2GivenNoEventBeforeTime1(time1, time2, gParams):
     # basically P(T <= time2 | T > time1) which is
     # (F(time2) - F(time1)) / (1 - F(time1))
     # where F is the CDF
@@ -91,7 +91,7 @@ for i in range(51):
     print str(i) + "%: " + str(CDFInverseGompertz(gParams, i/100.0))
 
 for i in range(100):
-        probDie = ProbDieBeforeT2GivenSurviveUntilTime1(1,2, gParams)
+        probDie = ProbEventBeforeT2GivenNoEventBeforeTime1(1,2, gParams)
         if pickRandomTF(probDie):
             print "die"
         else:
@@ -110,7 +110,7 @@ for i in range(iterations):
     bins = np.zeros(Median*2)
     for testSubject in range(1000):
         for day in range(Median*2):
-            probDie = ProbDieBeforeT2GivenSurviveUntilTime1(day, day+1, gParams)
+            probDie = ProbEventBeforeT2GivenNoEventBeforeTime1(day, day+1, gParams)
             if pickRandomTF(probDie):
                 bins[day] += 1
                 break

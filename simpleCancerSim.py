@@ -39,14 +39,13 @@ Created on Wed Oct 26 18:52:50 2016
 #     the population size due to cancer deaths.
 
 import numpy as np
-import misc.py as gp
+import misc as gp
 
 #Simulation parameters
 POPULATION = 1000000
 SLOTS_PER_DAY = 20  #number of appointment slots that can be allocated each day
-DAYS_TO_RUN = 365 * 5  #5 years
+DAYS_TO_RUN = 365 * 2  #2 years
 CANCER_START_DAILY_INCIDENCE_RATE = float(1) / (2 * 70 * 365)  #corresponds to person having a 50/50 chance of developing cancer in their life, avg lifespan 70 years
-AVERAGE_UNTREATED_LIFE_EXPECTANCY_DAYS = 365  #corresponds to suffers' expected days of life when cancer untreated
 
 #Status values
 STATUS_NOT_TREATED = "NT"
@@ -55,11 +54,17 @@ STATUS_TREATMENT_FAILED = "FL"
 
 #Simulation tracking variables
 class Sufferer:
-    def __init__(self, today):
+    def __init__(self, today, apptSchedule):
+        self.apptSchedule = apptSchedule
         self.dayCancerStarted = today
         self.appt = None #when created the cancer has not been diagnosed and so there is no appointment
         self.status = STATUS_NOT_TREATED
-        self.mortalityParams = pickRandomMortalityParams()
+        MEDmort = float(np.random.randint(60, 700))
+        PHALFmort = 0.02
+        self.mortalityParams = gp.gompertzParams(MEDmort, PHALFmort)        
+        MEDnotice = randomUniformFloat(gp.CDFInverseGompertz(self.mortalityParams, 0.01), MEDmort)
+        PHALFnotice = randomUniformFloat(0.02, 0.2)
+        self.noticingParams = gp.gompertzParams(MEDnotice, PHALFnotice)
 
     def cancerStage(self, day):
         return day - self.dayCancerStarted        
@@ -70,17 +75,26 @@ class Sufferer:
         #        - had an appt and either success or failure
         cancerStageToday = self.cancerStage(today)
         if self.appt == None:
-            suffererNoticesCancerToday = isNoticed(cancerStageToday)
+            suffererNoticesCancerToday = self.isNoticed(cancerStageToday)
             if suffererNoticesCancerToday:
-                self.appt = Model.apptSchedule.getNextApptSlot(today)
+                self.appt = self.apptSchedule.getNextApptSlot(today)
             #Note: if the sufferer does not notice the cancer there is no progress to process
         elif today < self.appt:
             pass #sufferer continues to wait for their appointment
         elif today >= self.appt:
-            if isTreatmentSuccessful(cancerStageToday):
+            if self.isTreatmentSuccessful(cancerStageToday):
                 self.status = STATUS_TREATMENT_SUCCEEDED
             else:
                 self.status = STATUS_TREATMENT_FAILED
+    
+    def isNoticed(self, cancerStageToday):
+        cancerStageYesterday = cancerStageToday -1;
+        probNoticing = gp.ProbEventBeforeT2GivenNoEventBeforeTime1(cancerStageYesterday, cancerStageToday, self.noticingParams)
+        return pickRandomTF(probNoticing)        
+        
+    def isTreatmentSuccessful(self, cancerStageToday):
+        probTreatmentSuccessful = 1 - gp.CDFGompertz(self.mortalityParams, cancerStageToday)
+        return pickRandomTF(probTreatmentSuccessful)
     
     def isStatusSuccess(self):
         return self.status == STATUS_TREATMENT_SUCCEEDED
@@ -109,7 +123,7 @@ class ApptSchedule:
         
     def getNextApptSlot(self, today):
         if today > self.nextApptDay:
-            self.resetNextApptDayToToday(today)
+            self.resetNextApptDayToDay(today)
         nextSlotDay = self.nextApptDay
         self.decrementSlotsAvailableNextApptDay()
         return nextSlotDay
@@ -143,15 +157,15 @@ class Model:
 
     def createNewSuffers(self, numberOfNewSufferers):
         for i in range(numberOfNewSufferers):
-            newSufferer = Sufferer(self.today)
+            newSufferer = Sufferer(self.today, self.apptSchedule)
             self.sufferers.append(newSufferer)
             
 ######## End of class Model
 
 class ModelResults:
     def __init__(self):
-        self.deaths = np.zeros(DAYS_TO_RUN)
-        self.cured = np.zeros(DAYS_TO_RUN)
+        self.deaths = np.zeros(DAYS_TO_RUN + 1)
+        self.cured = np.zeros(DAYS_TO_RUN + 1)
         
     def addDeath(self, day):
         self.deaths[day] += 1
@@ -159,50 +173,17 @@ class ModelResults:
     def addCure(self, day):
         self.cured[day] += 1
 
-def pickRandomMortalityParams():
-    MEDmort = float(np.random.randint(60, 700))
-    PHALFmort = 0.02
-    return gp.gompertzParams(MEDmort, PHALFmort)
-
 def numberOfNewCancerStartsToday():
     #Assume poisson process with mean rate*population.
-    averageStartsPerDay = CANCER_START_DAILY_INCIDENCE_RATE / POPULATION
+    averageStartsPerDay = CANCER_START_DAILY_INCIDENCE_RATE * POPULATION
     return np.random.poisson(averageStartsPerDay)
 
 def pickRandomTF(probOfTrue):
     randomFrom0To1 = np.random.uniform()
     return randomFrom0To1 <= probOfTrue
     
-def isTreatmentSuccessful(stageTreated):
-    #Random True/False depending on the probability of successful treatment given this stage.    
-    #The probability that treatment at the given stage will be ultimately successful.
-    #Should reflect the real-world disimproved prognosis as treatment is given later and later.
-    # SIMPLE MODEL - Prob success at stage 1 is 1 and is 0 at stage averageUntreatedLifeExpectancyDays and prob decreases linearly.
-    #                If stage is beyond averageUntreatedLifeExpectancyDays then prob is 0.
-    if stageTreated >= AVERAGE_UNTREATED_LIFE_EXPECTANCY_DAYS:
-        return False
-    elif stageTreated <= 1:
-        return True
-    else:
-        probOfFailure = float(stageTreated) / AVERAGE_UNTREATED_LIFE_EXPECTANCY_DAYS
-        probOfSuccess = 1 - probOfFailure
-        return pickRandomTF(probOfSuccess)
-
-def isNoticed(stage):
-    #Random True/False depending on the probability of noticing the cancer given this stage.    
-    #The probability that cancer at the given stage is noticed/diagnosed (that day).
-    # SIMPLE MODEL - Prob of noticing at stage 1 is 0 and is 1 at stage averageUntreatedLifeExpectancyDays and prob increases linearly.
-    #                If stage is beyond averageUntreatedLifeExpectancyDays then prob is 1.
-    #
-    #MUST FIX THIS UP - Prob of noticing on any particular day is much less!
-    #
-    if stage >= AVERAGE_UNTREATED_LIFE_EXPECTANCY_DAYS:
-        return False
-    elif stage <= 1:
-        return False
-    else:
-        probOfNotice = float(stage) / AVERAGE_UNTREATED_LIFE_EXPECTANCY_DAYS
-        return pickRandomTF(probOfNotice)
+def randomUniformFloat(min, max):
+    return np.random.random_sample() * (max - min) + min
 
 #Finally, actually run the model:
 simResults = ModelResults();
