@@ -41,6 +41,7 @@ Created on Wed Oct 26 18:52:50 2016
 import numpy as np
 import misc as gp
 #import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 #Simulation parameters
 POPULATION = 500000
@@ -214,10 +215,10 @@ def randomUniformFloat(min, max):
 
 #Finally, actually run the model:
 print "{:>10}  {:>10}  {:>10}  {:>10}".format("slots", "deaths", "avg waits", "avg stage")
-for SLOTS_PER_DAY in reversed(range(5, 16)):
+for SLOTS_PER_DAY in tqdm(reversed(range(5, 16))):
     simResults = ModelResults();
     simModel = Model(simResults);
-    for day in range(DAYS_TO_RUN):
+    for day in tqdm(range(DAYS_TO_RUN)):
         simModel.progressToNextDay()
     deaths = int(np.sum(simResults.deaths))
     print "{:>10}  {:>10}  {:>10.2f}  {:>10.2f}".format(SLOTS_PER_DAY, deaths, simResults.avgApptWaitDays(), simResults.avgStageTreated())
