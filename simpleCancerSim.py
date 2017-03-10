@@ -218,7 +218,7 @@ print "{:>10}  {:>10}  {:>10}  {:>10}".format("slots", "deaths", "avg waits", "a
 for SLOTS_PER_DAY in tqdm(reversed(range(5, 16))):
     simResults = ModelResults();
     simModel = Model(simResults);
-    for day in tqdm(range(DAYS_TO_RUN)):
+    for day in trange(DAYS_TO_RUN):
         simModel.progressToNextDay()
     deaths = int(np.sum(simResults.deaths))
     print "{:>10}  {:>10}  {:>10.2f}  {:>10.2f}".format(SLOTS_PER_DAY, deaths, simResults.avgApptWaitDays(), simResults.avgStageTreated())
